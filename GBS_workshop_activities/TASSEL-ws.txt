@@ -1,0 +1,151 @@
+# /raid2/labs/Bassil_Lab/strawberry_GBS3/HolidayxKorona/tassel_ws
+
+TASSEL requires three inputs: 
+1) A barcode key file. This identifies individual samples by their barcodes and gives their locations on a 96-well plate. 
+2) A reference genome fasta file
+3) One or more Illumina Fastq files representing samples from a GBS population
+
+# The key file is located here, and is called key.tsv:
+/nfs1/Teaching/data/viningk/GBS/barcode_key
+
+# The reference genome file is located here, and is called Fvb_genome.fa:
+/nfs1/Teaching/data/viningk/GBS/PhytozomeV10/
+
+# The fastq file is located here, and is called SUB_C1JDAACXX_s_2_fastq.txt:
+/nfs1/Teaching/data/viningk/GBS/Illumina_fastq/
+
+# Look at the key file using the less command
+less -S /nfs1/Teaching/data/viningk/GBS/barcode_key/key.tsv
+# Notice that some of the column entries are long enough that they run into adjacent columns and make the file difficult to read. Try the 'column' command to make the file easier to read The -t flag tell the column utility to determine the number of columns in the file and create a table.
+
+column -t key.tsv
+
+# Step 1: In your home directory, make a main TASSEL directory
+mkdir tassel 
+
+# Step 2: Change directory to move into the TASSEL directory you just created:
+cd tassel
+
+# Step 3: Within the main TASSEL directory, make subdirectories to hold output files:
+mkdir Illumina
+mkdir key
+mkdir referencegenome
+mkdir tagCounts
+mkdir tagsByTaxa
+mkdir mergedTagCounts
+mkdir topm
+mkdir tbt
+mkdir mergedTBT
+mkdir hapMap
+
+# Step 4: Change directory to the key subdirectory, then make a symbolic link to the key file using the "link symbolic" command, ln -s. Use the line list command, ls -l, to see what the symbolic link looks like.
+cd key
+ln -s /nfs1/Teaching/data/viningk/GBS/barcode_key/key.tsv
+ls -l
+
+# Step 5: Move up one level from the key subdirectory back to the TASSEL main directory, then move down into the reference genome subdirectory. Make a symbolic link to the reference genome.
+cd ../referencegenome
+ln -s /nfs1/Teaching/data/viningk/GBS/PhytozomeV10/Fvb
+
+# Step 6: Move up one level from the reference genome subdirectory back to the TASSEL main directory, then move down into the Illumina subdirectory. Make a symbolic link to the fastq file. Then move back up one level so that you are again in the TASSEL main directory. Hint: pwd to make sure you're in the right place!
+cd ../Illumina
+ln -s /nfs1/Teaching/data/viningk/GBS/Illumina_fastq/SUB_C1JDAACXX_s_2_fastq.txt
+cd ..
+
+# Now you're ready to run TASSEL! Run each plugin from the main TASSEL directory using the commands shown below. 
+
+# Step 7a FastqToTagCountPlugin. This will output a file in "count" format called SUB_C1JDAACXX_s_2.cnt
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -Xmx512g -fork1 -FastqToTagCountPlugin -i Illumina -k key/key.tsv -e ApeKI -o tagCounts -endPlugin -runfork1
+# How many barcodes were found in the key file? 
+# How many reads were in the fastq file, and how many of them contained a barcode and cut site overhang?
+
+Using the following FASTQ files:
+/raid2/labs/Bassil_Lab/strawberry_GBS3/HolidayxKorona/tassel_ws/Illumina/SUB_C1JDAACXX_s_2_fastq.txt
+Reading FASTQ file: /raid2/labs/Bassil_Lab/strawberry_GBS3/HolidayxKorona/tassel_ws/Illumina/SUB_C1JDAACXX_s_2_fastq.txt
+Enzyme: ApeKI
+GTACTT E-71006:C1JDAACXX:2:1
+TGGTACGT H-02316:C1JDAACXX:2:1
+GAATTCA H-02317:C1JDAACXX:2:1
+TTCAGA H-02321:C1JDAACXX:2:1
+CGCTT H-02322:C1JDAACXX:2:1
+GCTGTGGA H-02324:C1JDAACXX:2:1
+CTACGGA H-02331:C1JDAACXX:2:1
+GCCAGT H-02356:C1JDAACXX:2:1
+GAGGA H-02369:C1JDAACXX:2:1
+TGCAAGGA H-02374:C1JDAACXX:2:1
+GGAAC H-02379:C1JDAACXX:2:1
+GGAAGA H-02385:C1JDAACXX:2:1
+TAGGCCAT H-02401:C1JDAACXX:2:1
+CCTAC H-02406:C1JDAACXX:2:1
+CTATTA H-02410:C1JDAACXX:2:1
+CGGTAGA H-02465:C1JDAACXX:2:1
+CGTGTGGT H-02475:C1JDAACXX:2:1
+CGAT H-02485:C1JDAACXX:2:1
+CCAGCT H-02501:C1JDAACXX:2:1
+GCGGAAT H-02529:C1JDAACXX:2:1
+GGATTGGT H-02549:C1JDAACXX:2:1
+TCACC H-02552:C1JDAACXX:2:1
+TAGGAA H-02572:C1JDAACXX:2:1
+GAACTTC H-02622:C1JDAACXX:2:1
+AAAAGTT H-02637:C1JDAACXX:2:1
+CCACAA Korona:C1JDAACXX:2:1
+Total barcodes found in lane:26
+Total barcodes found in lane:26
+Total Reads:1000000 Reads with barcode and cut site overhang:265942
+Total number of reads in lane=1000000
+Total number of good barcoded reads=265942
+Timing process (sorting, collapsing, and writing TagCount to file).
+Position index sort begin.
+Position index sort end.
+Position index sort begin.
+Position index sort end.
+Rows collapsed:104685
+Unique tags retained:161257
+161257 tags will be output to tagCounts/SUB_C1JDAACXX_s_2.cnt
+These 161257 tags were covered by 265942 matching reads
+Tags written to:tagCounts/SUB_C1JDAACXX_s_2.cnt
+Number of Tags in file:161257
+Process took 16788 milliseconds.
+Finished reading 1 of 1 sequence files.
+26.492u 1.532s 0:22.87 122.5%   0+0k 496944+6680io 1pf+0w
+
+# Step 7b: MergeMultipeTagCounts plugin. The -t flag tells the plugin to output a fastq format file.
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -Xmx512g -fork1 -MergeMultipleTagCountPlugin -i tagCounts -o mergedTagCounts/FRA_MasterTags.cnt -c 5 -t -endPlugin -runfork1
+
+# Step 7c: Alignment with bwa using reference genome
+bwa aln referencegenome/Fvb_genome.fa mergedTagCounts/FRA_MasterTags.cnt.fq > mergedTagCounts/FRA_AlignedMasterTags.sai
+bowtie2 -x /nfs1/Teaching/data/viningk/GBS/PhytozomeV10/Fvb -U mergedTagCounts/FRA_MasterTags.cnt.fq -S mergedTagCounts/FRA_AlignedMasterTags.sam
+# Output: file FRA_AlignedMasterTags.sam in mergedTagCounts dir
+#[viningk@crick ~/test]$ bowtie2 -x /nfs1/Teaching/data/viningk/GBS/PhytozomeV10/Fvb -U mergedTagCounts/FRA_MasterTags.cnt.fq -S mergedTagCounts/FRA_AlignedMasterTags.sam
+# 5053 reads; of these:
+#   5053 (100.00%) were unpaired; of these:
+#    802 (15.87%) aligned 0 times
+#    3579 (70.83%) aligned exactly 1 time
+#    672 (13.30%) aligned >1 times
+# 84.13% overall alignment rate
+
+
+# Step 7d: Running SamConverter plugin
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -fork1 -SAMConverterPlugin -i mergedTagCounts/FRA_AlignedMasterTags.sam -o topm/FRA_MasterTags.topm.bin -endPlugin -runfork1
+# Output: 2 files
+# FRA_MasterTags.topm.bin, FRA_MasterTags.topm.bin.log
+
+# Step 7e Move into the topm subdirectory and look at the .log file. How many tages were aligned to unique positions in the reference genome? How many aligned to multiple positions?
+# cd back up to the main TASSEL directory before proceeding. 
+cd topm
+less FRA_MasterTags.topm.bin.log
+cd ..
+
+# Step 7f: MergeMultipeTagCounts plugin again, this time without the -t flag.This will output a "count" format .cnt file.
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -Xmx512g -fork1 -MergeMultipleTagCountPlugin -i tagCounts -o mergedTagCounts/FRA_MasterTags.cnt -c 5 -endPlugin -runfork1
+
+# Step 7g: FastqToTBT plugin
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -fork1 -FastqToTBTPlugin -i Illumina -k key/key.tsv -e ApeKI -o tbt -t mergedTagCounts/FRA_MasterTags.cnt -y -endPlugin -runfork1
+
+# Step 7h: MergeTagsByTaxaFiles plugin
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -Xmx512g -fork1 -MergeTagsByTaxaFilesPlugin -i tbt -o mergedTBT/SUB_C1JDAACXX_s_2.tbt.byte -endPlugin -runfork1
+
+# Step 7: TagsToSNPByAlignment plugin
+/local/cluster/hts/gbs/tassel3.0_standalone/run_pipeline.pl -Xmx512g -fork1 -TagsToSNPByAlignmentPlugin -i mergedTBT/SUB_C1JDAACXX_s_2.tbt.byte -m topm/FRA_MasterTags.topm.bin -o hapMap/chr+_hmp.txt -mnLCov 0.001 -mnMAC 0 -mnMAF 0.0001 -sC 0 -eC 7 -endPlugin -runfork1
+
+# Output: one .txt file per chromosome: e.g.  mergedTBT.c1.hmp.txt
