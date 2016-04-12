@@ -1,0 +1,286 @@
+---
+title: "Calculating restriction enzyme fragment numbers for Pythium irregulare"
+author: "Javier F. Tabima"
+date: "September 16, 2015"
+output: 
+  html_document: 
+    theme: readable
+---
+
+# The rationale
+
+There is an interest in genotyping samples of the genus *Pythium*. In order to avoid the same complications that we had with other species, lets perform a virtual restriction enzyme assay using the classic enzyme for GBS **ApeKI**, a the recommended pair of enzymes: **PstI** and **Msp1** and a new 8-base cutter **SbfI**. We want to compare the number of fragments and per-base coverage of the two enzyme method with the ApeKI method using the reference genome of *P. irregulare*.
+
+
+## The enzymes:
+
+
+### ApeKI
+
+Restriction endonuclease `ApeKI` recognizes the sequence "GCWGC" in double stranded DNA and cuts after the first position on each strand:
+
+![ApeKI cut sites](ApeKI.gif)
+
+***
+
+### PstI
+
+`PstI`, is a Type II restriction  enzyme from *Providencia stuartii*:
+
+![PstI cut sites](PstI.gif)
+
+### MspI
+
+`MspI`, is a Type II restriction enzyme. It was used for methylation analyzes as it was able to cut [hydroxymethylated DNA](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC342244/).
+
+![MspI Cut site](MspI.gif)
+
+### Interaction between the two restriction enzymes.
+
+The MspI adapter is designed as a Y-adapter.  During amplification the reverse primer is identical to the Y tail of the common adapter and can only anneal if the complimentary strand has first been synthesized from the other end.  This prevents the amplification of the MspI-MspI fragments and adapter dimers as fragments that have Y adapters (P2 adapters) on both ends will not be amplified via PCR. 
+
+***
+
+### Sbf1
+
+SbfI is a restriction enzyme that recognizes CCTGCA^GG and its not dam methylation-sensitive, not dcm methylation-sensitive and not CpG methylation-sensitive.
+
+![SbfI Cut site](SbfI.gif)
+
+***
+
+
+##  Dataset
+
+* Inputs:
+  1. Reference genome of *Pytium irregulare*:`http://fungidb.org/common/downloads/release-3.2/Pirregulare_DAOMBR486/fasta/data/FungiDB-3.2_Pirregulare_DAOMBR486_Genome.fasta`
+  
+  2. Enzymes for SimRAD: 
+  * `ApeKI`
+  * `Pst1` and `Msp1`
+  * `SbfI`
+
+***
+## Loading the library and the *Pythium irregulate* genome
+```{r,include=T}
+library(SimRAD)
+#Reference Sequence: PLEASE CHANGE TO THE FOLDER WHERE YOU DOWNLOADED THE GENOME
+setwd("/Users/tabimaj/Documents/Pythium")
+pyirr.c <- ref.DNAseq("FungiDB-3.2_Pirregulare_DAOMBR486_Genome.fasta",subselect.contigs = F)
+```
+
+***
+## ApeKI
+
+```{r, warning=FALSE}
+# ApeKI : G|CWGC  which is equivalent of either G|CAGC or  G|CTGC
+cs_5p1 <- "G"
+cs_3p1 <- "CAGC"
+cs_5p2 <- "G"
+cs_3p2 <- "CTGC"
+pyirr.dig.ape <- insilico.digest(pyirr.c , cs_5p1, cs_3p1, cs_5p1, cs_3p1, verbose=TRUE)
+```
+
+We have `r length(pyirr.dig.ape)` regions with `ApeKI` cut regions. After size selection for anything greater than 100bp: 
+
+
+```{r, warning=FALSE}
+## Size selection (100bp ~ Max length)
+pyirr.size.selected.ape <- size.select(pyirr.dig.ape,min.size = 100,max.size = 1000,graph = T)
+```
+
+### Total nucleotides
+
+
+```{r, include=F}
+bp_1.ape <- sum(unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) == 100) * 100
+bp_2.ape <- sum(unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) >= 200) * 200
+bp_1.5.ape <- sum(unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) < 200) + sum(abs(100 - unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x)))[unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.ape, function (x) nchar(x))) < 200]))
+total_nucs.ape <- bp_1.ape + bp_2.ape + bp_1.5.ape
+```
+
+If we have a genome with a total size of `r prettyNum(nchar(pyirr.c),big.mark=",")` base pairs, we divide the number of total nucleotides sequenced by using this method (`r prettyNum(total_nucs.ape,big.mark=",")`), we will have `r (total_nucs.ape/nchar(pyirr.c)) * 100`% of the genome represented.
+
+***
+
+## PstI / MspI
+
+```{r, warning=FALSE}
+#Restriction Enzyme 1
+ #PstI
+    cs_5p1 <- "CTGCA"
+    cs_3p1 <- "G"
+#Restriction Enzyme 2
+ #MspI
+    cs_5p2 <- "C"
+    cs_3p2 <- "CGG"
+# double digestion:
+pyirr.dig <- insilico.digest(pyirr.c, cs_5p1, cs_3p1, cs_5p2, cs_3p2, verbose=TRUE) 
+#selection of AB type fragments
+pyirr.selected <- adapt.select(pyirr.dig, type="AB+BA", cs_5p1, cs_3p1, cs_5p2, cs_3p2) 
+```
+
+We have `r length(pyirr.selected)` regions with `Pse1-Msp1` flanking regions. After size selection for anything greater than 100bp:
+
+```{r, warning=FALSE}
+## Size selection (100bp ~ Max length)
+pyirr.size.selected <- size.select(pyirr.selected,min.size = 100,max.size = 1000,graph = T)
+```
+
+### Total nucleotides
+
+If each of the reads have 100bp maximum (Using a single end Illumina 3000 lane), in theory we will have 100 * Number of regions = Total nucleotides. We have regions greater than 100bp, and this can lead to more than one 100 bp reads per cluster. In this case, regions greater than 200bp will have a maximum of two different 100bp reads: 200bp per region. For regions greater than 100 and lesser than 200bp, the length will be 100bp + the rest of the region:
+
+```{r, include=F, warning=FALSE}
+bp_1 <- sum(pyirr.size.selected@ranges@width == 100) * 100
+bp_2 <- sum(pyirr.size.selected@ranges@width >= 200) * 200
+bp_1.5 <- sum(pyirr.size.selected@ranges@width > 100 & pyirr.size.selected@ranges@width < 200) + sum(abs(100 - pyirr.size.selected@ranges@width[pyirr.size.selected@ranges@width > 100 & pyirr.size.selected@ranges@width < 200]))
+total_nucs <- bp_1 + bp_2 + bp_1.5
+```
+
+If we have a genome with a total size of `r prettyNum(nchar(pyirr.c),big.mark=",")` base pairs, we divide the number of total nucleotides sequenced by using this method (`r prettyNum(total_nucs,big.mark=",")`), we will have `r (total_nucs/nchar(pyirr.c)) * 100`% of the genome represented.
+
+# Comparison
+
+|Enzyme|Number of fragments|Number of nucleotides|Percentage of genome sequenced|
+|---|---|---|---|
+|`ApeKI`|`r prettyNum(length(pyirr.size.selected.ape), big.mark=",")`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r (total_nucs.ape/nchar(pyirr.c) * 100)`|
+|`Pst1 + Msp1`|`r prettyNum(length(pyirr.size.selected), big.mark=",")`|`r prettyNum(total_nucs,big.mark=",")`|`r (total_nucs/nchar(pyirr.c)) * 100`|
+
+# Average coverage per sample.
+
+Lets assume we have 96 samples, and in a perfect world the Illumina 3000 in a lane should sequence 300e+6 reads, or 30 Gigabases (30,000,000,000 bases).
+
+If we have 96 samples in a lane, then the Illumina sequencer should provide us with `r prettyNum(3e+10/96, big.mark=",")` nucleotides per sample. If we divide the number of nucleotides obtained per sample *P. irregulare* genome by the number of nucleotides per sample per lane we can obtain the average base coverage:
+
+|Enzyme|Number of nucleotides|Percentage of genome sequenced|Average base coverage for 96 samples|
+|---|---|---|---|
+|No Enzyme|`r prettyNum(nchar(pyirr.c),big.mark=",")`| 100 | `r prettyNum(312500000/nchar(pyirr.c),big.mark=",")`
+|`ApeKI`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r round(total_nucs.ape/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.ape,big.mark=",")`
+|`Pst1 + Msp1`|`r prettyNum(total_nucs,big.mark=",")`|`r round (total_nucs/nchar(pyirr.c) * 100, 2)`|  `r prettyNum(312500000/total_nucs,big.mark=",")`
+
+
+> NOTE: Remember that the read distribution is not uniform, and this is just an approach based on uniformity and upper limits on the Illumina HiSeq 3000 sequencing machine. 
+
+***
+
+## SbfI
+
+```{r, warning=FALSE}
+# SbfI  : 8 Base cutter: CCTGCA^GG
+
+cs_5p1 <- "CCTGCA"
+cs_3p1 <- "GG"
+cs_5p2 <- "GG"
+cs_3p2 <- "CCTGCA"
+pyirr.dig.sbf <- insilico.digest(pyirr.c , cs_5p1, cs_3p1, cs_5p1, cs_3p1, verbose=TRUE)
+
+```
+
+We have `r length(pyirr.dig.sbf)` regions with `SbfI` cut regions. After size selection for anything greater than 100bp: 
+
+
+```{r, warning=FALSE}
+## Size selection (100bp ~ Max length)
+pyirr.size.selected.sbf <- size.select(pyirr.dig.sbf,min.size = 100,max.size = 1000 ,graph = T)
+```
+
+### Total nucleotides
+
+
+```{r}
+bp_1.sbf <- sum(unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) == 100) * 100
+bp_2.sbf <- sum(unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) >= 200) * 200
+bp_1.5.sbf <- sum(unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) < 200) + sum(abs(100 - unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x)))[unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.sbf, function (x) nchar(x))) < 200]))
+total_nucs.sbf <- bp_1.sbf + bp_2.sbf + bp_1.5.sbf
+```
+
+If we have a genome with a total size of `r prettyNum(nchar(pyirr.c),big.mark=",")` base pairs, we divide the number of total nucleotides sequenced by using this method (`r prettyNum(total_nucs.sbf,big.mark=",")`), we will have `r (total_nucs.sbf/nchar(pyirr.c)) * 100`% of the genome represented.
+
+
+# Comparison
+
+|Enzyme|Number of fragments|Number of nucleotides|Percentage of genome sequenced|
+|---|---|---|---|
+|`ApeKI`|`r prettyNum(length(pyirr.size.selected.ape), big.mark=",")`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r (total_nucs.ape/nchar(pyirr.c) * 100)`|
+|`Pst1 + Msp1`|`r prettyNum(length(pyirr.size.selected), big.mark=",")`|`r prettyNum(total_nucs,big.mark=",")`|`r (total_nucs/nchar(pyirr.c)) * 100`|
+|`SbfI`|`r prettyNum(length(pyirr.size.selected.sbf), big.mark=",")`|`r prettyNum(total_nucs.sbf,big.mark=",")`|`r (total_nucs.sbf/nchar(pyirr.c)) * 100`|
+
+# Average coverage per sample.
+
+Lets assume we have 96 samples, and in a perfect world the Illumina 3000 in a lane should sequence 300e+6 reads, or 30 Gigabases (30,000,000,000 bases).
+
+If we have 96 samples in a lane, then the Illumina sequencer should provide us with `r prettyNum(3e+10/96, big.mark=",")` nucleotides per sample. If we divide the number of nucleotides obtained per sample *P. irregulare* genome by the number of nucleotides per sample per lane we can obtain the average base coverage:
+
+|Enzyme|Number of nucleotides|Percentage of genome sequenced|Average base coverage for 96 samples|
+|---|---|---|---|
+|No Enzyme|`r prettyNum(nchar(pyirr.c),big.mark=",")`| 100 | `r prettyNum(312500000/nchar(pyirr.c),big.mark=",")`
+|`ApeKI`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r round(total_nucs.ape/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.ape,big.mark=",")`
+|`Pst1 + Msp1`|`r prettyNum(total_nucs,big.mark=",")`|`r round (total_nucs/nchar(pyirr.c) * 100, 2)`|  `r prettyNum(312500000/total_nucs,big.mark=",")`
+|`ApeKI`|`r prettyNum(total_nucs.sbf,big.mark=",")`|`r round(total_nucs.sbf/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.sbf,big.mark=",")`
+
+
+
+## SbfI + MspI
+
+```{r, warning=FALSE}
+#Restriction Enzyme 1
+ #SbfI
+    cs_5p1 <- "CCTGCA"
+    cs_3p1 <- "GG"
+#Restriction Enzyme 2
+ #MspI
+    cs_5p2 <- "C"
+    cs_3p2 <- "CGG"
+# double digestion:
+pyirr.dig <- insilico.digest(pyirr.c, cs_5p1, cs_3p1, cs_5p2, cs_3p2, verbose=TRUE) 
+#selection of AB type fragments
+pyirr.selected <- adapt.select(pyirr.dig, type="AB+BA", cs_5p1, cs_3p1, cs_5p2, cs_3p2) 
+```
+
+e have `r length(pyirr.selected)` regions with `Pse1-Msp1` flanking regions. After size selection for anything greater than 100bp:
+
+```{r, include=T, warning=FALSE}
+## Size selection (100bp ~ Max length)
+pyirr.size.selected.sbf.msp <- size.select(pyirr.selected,min.size = 100,max.size = 1000,graph = T)
+```
+
+
+### Total nucleotides
+
+
+```{r}
+bp_1.sbf.msp <- sum(unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) == 100) * 100
+bp_2.sbf.msp <- sum(unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) >= 200) * 200
+bp_1.5.sbf.msp <- sum(unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) < 200) + sum(abs(100 - unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x)))[unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) > 100 & unlist(lapply(pyirr.size.selected.sbf.msp, function (x) nchar(x))) < 200]))
+total_nucs.sbf.msp <- bp_1.sbf.msp + bp_2.sbf.msp + bp_1.5.sbf.msp
+```
+
+If we have a genome with a total size of `r prettyNum(nchar(pyirr.c),big.mark=",")` base pairs, we divide the number of total nucleotides sequenced by using this method (`r prettyNum(total_nucs.sbf.msp,big.mark=",")`), we will have `r (total_nucs.sbf.msp/nchar(pyirr.c)) * 100`% of the genome represented.
+
+
+# Comparison
+
+|Enzyme|Number of fragments|Number of nucleotides|Percentage of genome sequenced|
+|---|---|---|---|
+|`ApeKI`|`r prettyNum(length(pyirr.size.selected.ape), big.mark=",")`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r (total_nucs.ape/nchar(pyirr.c) * 100)`|
+|`Pst1 + Msp1`|`r prettyNum(length(pyirr.size.selected), big.mark=",")`|`r prettyNum(total_nucs,big.mark=",")`|`r (total_nucs/nchar(pyirr.c)) * 100`|
+|`SbfI`|`r prettyNum(length(pyirr.size.selected.sbf), big.mark=",")`|`r prettyNum(total_nucs.sbf,big.mark=",")`|`r (total_nucs.sbf/nchar(pyirr.c)) * 100`|
+|`SbfI + MspI`|`r prettyNum(length(pyirr.size.selected.sbf.msp), big.mark=",")`|`r prettyNum(total_nucs.sbf.msp,big.mark=",")`|`r (total_nucs.sbf.msp/nchar(pyirr.c)) * 100`|
+
+
+# Average coverage per sample.
+
+Lets assume we have 96 samples, and in a perfect world the Illumina 3000 in a lane should sequence 300e+6 reads, or 30 Gigabases (30,000,000,000 bases).
+
+If we have 96 samples in a lane, then the Illumina sequencer should provide us with `r prettyNum(3e+10/96, big.mark=",")` nucleotides per sample. If we divide the number of nucleotides obtained per sample *P. irregulare* genome by the number of nucleotides per sample per lane we can obtain the average base coverage:
+
+|Enzyme|Number of nucleotides|Percentage of genome sequenced|Average base coverage for 96 samples|
+|---|---|---|---|
+|No Enzyme|`r prettyNum(nchar(pyirr.c),big.mark=",")`| 100 | `r prettyNum(312500000/nchar(pyirr.c),big.mark=",")`
+|`ApeKI`|`r prettyNum(total_nucs.ape,big.mark=",")`|`r round(total_nucs.ape/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.ape,big.mark=",")`
+|`Pst1 + Msp1`|`r prettyNum(total_nucs,big.mark=",")`|`r round (total_nucs/nchar(pyirr.c) * 100, 2)`|  `r prettyNum(312500000/total_nucs,big.mark=",")`
+|`SbfI`|`r prettyNum(total_nucs.sbf,big.mark=",")`|`r round(total_nucs.sbf/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.sbf,big.mark=",")`
+|`SbfI + MspI`|`r prettyNum(total_nucs.sbf.msp,big.mark=",")`|`r round(total_nucs.sbf.msp/nchar(pyirr.c) * 100, 2)`| `r prettyNum(312500000/total_nucs.sbf.msp,big.mark=",")`
+
+> NOTE: Remember that the read distribution is not uniform, and this is just an approach based on uniformity and upper limits on the Illumina HiSeq 3000 sequencing machine. 
